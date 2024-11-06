@@ -13,10 +13,14 @@ class DatabaseApp:
         self.conn = sqlite3.connect('app_database.db')
         self.create_tables()
         
+        # Add some sample data if the database is empty
+        self.initialize_sample_data()
+        
         self.setup_ui()
         
     def create_tables(self):
         cursor = self.conn.cursor()
+        print("Creating tables...") # Debug output
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,6 +31,31 @@ class DatabaseApp:
         )
         ''')
         self.conn.commit()
+        print("Tables created successfully") # Debug output
+        
+    def initialize_sample_data(self):
+        cursor = self.conn.cursor()
+        # Check if table is empty
+        cursor.execute('SELECT COUNT(*) FROM items')
+        count = cursor.fetchone()[0]
+        
+        if count == 0:
+            print("Adding sample data...") # Debug output
+            sample_data = [
+                ("First Item", "This is a sample description", "sample,test,first"),
+                ("Python Book", "Learning Python Programming", "python,programming,book"),
+                ("Recipe", "Grandmother's apple pie recipe", "food,recipe,dessert"),
+            ]
+            
+            cursor.executemany('''
+            INSERT INTO items (title, description, tags)
+            VALUES (?, ?, ?)
+            ''', sample_data)
+            
+            self.conn.commit()
+            print(f"Added {len(sample_data)} sample items") # Debug output
+        else:
+            print(f"Database already contains {count} items") # Debug output
         
     def setup_ui(self):
         # Search frame
@@ -90,12 +119,18 @@ class DatabaseApp:
         self.refresh_items()
         
     def add_item(self):
+        if not self.title_var.get().strip():
+            print("Error: Title cannot be empty")  # Debug output
+            return
+            
         cursor = self.conn.cursor()
         cursor.execute('''
         INSERT INTO items (title, description, tags)
         VALUES (?, ?, ?)
         ''', (self.title_var.get(), self.desc_var.get(), self.tags_var.get()))
         self.conn.commit()
+        
+        print(f"Added new item: {self.title_var.get()}")  # Debug output
         
         # Clear entry fields
         self.title_var.set('')
@@ -116,12 +151,16 @@ class DatabaseApp:
         else:
             cursor.execute('SELECT * FROM items')
             
-        self.update_tree(cursor.fetchall())
+        rows = cursor.fetchall()
+        print(f"Found {len(rows)} items matching search: {search_term}")  # Debug output
+        self.update_tree(rows)
         
     def refresh_items(self):
         cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM items')
-        self.update_tree(cursor.fetchall())
+        rows = cursor.fetchall()
+        print(f"Refreshing items, found {len(rows)} total")  # Debug output
+        self.update_tree(rows)
         
     def update_tree(self, rows):
         self.tree.delete(*self.tree.get_children())
